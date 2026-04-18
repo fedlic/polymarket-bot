@@ -53,7 +53,8 @@ class Config:
         self.RETRY_BACKOFF_FACTOR = float(os.getenv("RETRY_BACKOFF_FACTOR", "2.0"))
         self.DEFAULT_SLIPPAGE = float(os.getenv("DEFAULT_SLIPPAGE", "0.01"))  # 1% default slippage
         self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-        self.DRY_RUN = os.getenv("DRY_RUN", "True").lower() == "true"
+        # DRY_RUN has no default: either default is a footgun (silent dry-run hides broken wiring; silent live trading unsafe on upgrade).
+        self._DRY_RUN_RAW = os.getenv("DRY_RUN")
 
         # Telegram Notifications
         self.TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -85,7 +86,21 @@ class Config:
         # Check trader wallet configuration
         if not self.TRADER_WALLETS:
             errors.append("TRADER_WALLET is not set in .env file (provide at least one)")
-        
+
+        # DRY_RUN must be an explicit true/false
+        if self._DRY_RUN_RAW is None:
+            errors.append(
+                "DRY_RUN is not set in .env file. "
+                "Set DRY_RUN=true to simulate orders (no real trades), "
+                "or DRY_RUN=false to place real orders on Polymarket."
+            )
+        elif self._DRY_RUN_RAW.strip().lower() not in ("true", "false"):
+            errors.append(
+                f"DRY_RUN must be 'true' or 'false' (got '{self._DRY_RUN_RAW}')."
+            )
+        else:
+            self.DRY_RUN = self._DRY_RUN_RAW.strip().lower() == "true"
+
         if errors:
             error_message = "\n❌ Configuration Errors:\n" + "\n".join(f"  - {error}" for error in errors)
             error_message += "\n\n💡 Please check your .env file and ensure all required variables are set."
@@ -117,6 +132,10 @@ class Config:
         print(f"📊 Min Stake: ${self.STAKE_MIN}")
         print(f"📊 Max Stake: ${self.STAKE_MAX}")
         print(f"📊 Whale %: {self.STAKE_WHALE_PCT * 100}%")
+        if self.DRY_RUN:
+            print("🛡️  DRY_RUN: true — simulation only, no real orders will be placed")
+        else:
+            print("🔴 DRY_RUN: false — LIVE TRADING, real orders will be placed on Polymarket")
         print("=" * 80)
 
 

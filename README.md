@@ -154,9 +154,17 @@ POLY_FUNDER=your-polymarket-proxy-address
 # Trader to Copy
 TRADER_WALLET=trader-wallet-address-to-copy
 
+# Safety: start in simulation, flip to false only after verifying wiring
+DRY_RUN=true
+
 # Optional: Sizing Configuration
 STAKE_WHALE_PCT=0.001
 ```
+
+> ⚠️ **`DRY_RUN` is required and has no default.** With `DRY_RUN=true` the bot
+> logs orders but does not submit them to the CLOB — use this first to confirm
+> Supabase realtime is firing and your target wallet filter matches. Only set
+> `DRY_RUN=false` once you've seen the simulated orders look correct.
 
 **Getting Your Credentials:**
 
@@ -187,14 +195,16 @@ SUPABASE_KEY=          # Supabase anon/public key
 PK=                    # Your Polymarket private key
 POLY_FUNDER=           # Your Polymarket proxy address
 TRADER_WALLET=         # Trader wallet address to copy
+DRY_RUN=true           # true = simulate only, false = place real orders (no default)
 ```
 
 #### Optional Settings
 
 ```env
-TRADER_WALLET=         # Trader wallet address to copy (can be changed anytime)
-BANKROLL=500          # Your trading capital (default: 1000)
+BANKROLL=500          # Your trading capital in USDC (default: 1000)
 STAKE_WHALE_PCT=0.001 # Copy 0.1% of trader's size (default: 0.005)
+STAKE_MIN=5           # Floor on per-trade USDC size (default: 5)
+STAKE_MAX=20          # Cap on per-trade USDC size (default: 20)
 ```
 
 ### Position Sizing Examples
@@ -205,6 +215,13 @@ The **copytrading bot** scales trades automatically:
   - Your bot will place a $10 trade (10,000 × 0.001)
 - If whale bets $5,000 and you set `STAKE_WHALE_PCT=0.002`
   - Your bot will place a $10 trade (5,000 × 0.002)
+
+> ⚠️ **Skip floor:** trades where `target_usdc_size × STAKE_WHALE_PCT < STAKE_MIN`
+> are skipped (logged as `Skipping trade: scaled size ... below STAKE_MIN`).
+> With the defaults (`STAKE_WHALE_PCT=0.005`, `STAKE_MIN=5`) the target must
+> place a trade ≥ $1,000 for anything to be copied. With `STAKE_WHALE_PCT=0.001`
+> the floor becomes $5,000. Lower `STAKE_MIN` to copy smaller trades — Polymarket
+> CLOB has its own minimum (~$1) below which orders are rejected.
 
 ### Finding Profitable Traders to Copy
 
